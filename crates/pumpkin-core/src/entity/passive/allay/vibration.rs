@@ -1,8 +1,7 @@
 use pumpkin_data::{
-    BlockDirection,
     game_event::{GameEvent, PositionSourceType},
     particle::Particle,
-    tag::{self, Taggable},
+    tag,
 };
 use pumpkin_nbt::{compound::NbtCompound, tag::NbtTag};
 use pumpkin_protocol::{codec::var_int::VarInt, java::client::play::CParticle, ser::WritingError};
@@ -13,7 +12,7 @@ use super::{AllayEntity, ai};
 use crate::entity::EntityBase;
 use crate::world::{
     World,
-    game_event::{GameEventContext, GameEventListener},
+    game_event::{GameEventContext, GameEventListener, is_valid_vibration, is_vibration_occluded},
 };
 
 const VIBRATION_EVENT_LISTENER_RANGE: i32 = 16;
@@ -179,13 +178,13 @@ impl GameEventListener for VibrationListener<'_> {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .current
             .is_some()
-            || !is_valid_vibration(event, context)
+            || !is_valid_vibration(event, context, tag::GameEvent::MINECRAFT_ALLAY_CAN_LISTEN)
         {
             return false;
         }
         let destination = allay.get_eye_pos();
         if !allay.can_receive_vibration(world, BlockPos::floored_v(source_position))
-            || is_occluded(world, source_position, destination)
+            || is_vibration_occluded(world, source_position, destination)
         {
             return false;
         }
@@ -215,39 +214,6 @@ impl GameEventListener for VibrationListener<'_> {
         }
         true
     }
-}
-
-fn is_valid_vibration(event: GameEvent, context: &GameEventContext<'_>) -> bool {
-    if !tag::GameEvent::MINECRAFT_ALLAY_CAN_LISTEN
-        .0
-        .contains(&event.name())
-    {
-        return false;
-    }
-    let Some(source) = context.source_entity else {
-        return true;
-    };
-    let ignored_while_sneaking = tag::GameEvent::MINECRAFT_IGNORE_VIBRATIONS_SNEAKING
-        .0
-        .contains(&event.name());
-    !source.is_spectator()
-        && (!source.is_stepping_carefully() || !ignored_while_sneaking)
-        && !source.dampens_vibrations()
-}
-
-fn is_occluded(world: &World, origin: Vector3<f64>, destination: Vector3<f64>) -> bool {
-    let from = BlockPos::floored_v(origin).to_centered_f64();
-    let to = BlockPos::floored_v(destination).to_centered_f64();
-    BlockDirection::all().iter().all(|direction| {
-        let nudged_source = from + direction.to_offset().to_f64() * f64::from(1.0e-5f32);
-        pumpkin_world::clip::traverse_blocks(nudged_source, to, |pos| {
-            world
-                .get_block(pos)
-                .has_tag(&tag::Block::MINECRAFT_OCCLUDES_VIBRATION_SIGNALS)
-                .then_some(())
-        })
-        .is_some()
-    })
 }
 
 impl AllayEntity {

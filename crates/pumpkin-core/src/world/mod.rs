@@ -40,6 +40,7 @@ pub mod raid;
 pub mod random_sequences;
 pub mod stopwatches;
 pub mod time;
+pub mod vibration;
 pub mod village_siege;
 pub mod wandering_trader_spawner;
 

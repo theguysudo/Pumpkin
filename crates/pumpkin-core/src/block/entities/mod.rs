@@ -199,6 +199,12 @@ pub trait BlockEntity: Any + Send + Sync {
 
     fn clear_comparator_dirty(&self) {}
 
+    /// Vanilla `GameEventListener.Provider`: the block entity's world game event listener,
+    /// which is how sculk sensors receive vibrations.
+    fn game_event_listener(&self) -> Option<&dyn crate::world::game_event::GameEventListener> {
+        None
+    }
+
     fn as_any(&self) -> &dyn Any;
     fn to_property_delegate(self: Arc<Self>) -> Option<Arc<dyn PropertyDelegate>> {
         None
